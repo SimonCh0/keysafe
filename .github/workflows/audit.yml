@@ -1,0 +1,37 @@
+name: audits
+
+# Runs the full suite on real Windows and macOS. GitHub's windows-latest runner is
+# free for public repos and gives us the one thing this Mac cannot: actual PowerShell,
+# real Windows paths, CRLF, and npx.cmd behaviour.
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: Round 1 — behaviour, security, portability
+        run: node tests/audit.mjs
+
+      - name: Round 2 — credential shape coverage
+        run: node tests/shapes.mjs
+        if: runner.os != 'Windows'   # stubs are /bin/sh scripts
+
+      - name: Round 3 — .env round-trip
+        run: node tests/roundtrip.mjs
+        if: runner.os != 'Windows'   # uses sh to source the file
+
+      - name: Round 4 — messy human input
+        run: node tests/messy.mjs
+        if: runner.os != 'Windows'   # stubs are /bin/sh scripts
+
+      - name: Windows-only — PowerShell payload really runs
+        if: runner.os == 'Windows'
+        run: node tests/windows.mjs

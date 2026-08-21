@@ -1,0 +1,16 @@
+{
+  "name": "keysafe",
+  "owner": {
+    "name": "Simon Chadwick"
+  },
+  "plugins": [
+    {
+      "name": "connect-app",
+      "source": "./plugins/connect-app",
+      "description": "Connect any app to Claude without pasting your API key into the chat"
+    }
+  ],
+  "metadata": {
+    "description": "Tools for connecting apps to Claude safely, without API keys passing through the chat."
+  }
+}
