@@ -86,8 +86,8 @@ if (url) {
   await new Promise((r) => { const t = setTimeout(() => { child.kill(); r(); }, 4000); child.on('exit', () => { clearTimeout(t); r(); }); });
   const cfgPath = join(dir, 'home', '.claude.json');
   const cfg = existsSync(cfgPath) ? JSON.parse(readFileSync(cfgPath, 'utf8')) : null;
-  const entry = cfg && Object.values(cfg.projects)[0].mcpServers.t;
-  check('config written to the Windows home directory', !!entry, JSON.stringify(cfg));
+  const entry = cfg && cfg.mcpServers && cfg.mcpServers.t;
+  check('config written to the Windows home directory (user scope)', !!entry, JSON.stringify(cfg));
   check('npx shimmed to cmd /c in the written config',
     entry?.command === 'cmd' && entry.args[0] === '/c' && entry.args[1] === 'npx',
     JSON.stringify(entry));

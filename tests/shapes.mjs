@@ -74,7 +74,7 @@ async function run(spec, values) {
   cleanup(d);
   return res;
 }
-const server = r => r.cfg ? Object.values(Object.values(r.cfg.projects)[0].mcpServers)[0] : null;
+const server = r => r.cfg ? Object.values(r.cfg.mcpServers || Object.values(r.cfg.projects || {})[0]?.mcpServers || {})[0] : null;
 
 console.log('\n\x1b[1mShape coverage audit\x1b[0m\n');
 

@@ -84,6 +84,9 @@ function validateSpec(s) {
     throw new Error('server id must be letters, numbers, dashes or underscores');
   }
   if (s.header && /[\r\n:]/.test(s.header)) throw new Error('header name is malformed');
+  if (s.scope && s.scope !== 'user' && s.scope !== 'project') {
+    throw new Error("scope must be 'user' or 'project'");
+  }
   return s;
 }
 
@@ -422,13 +425,24 @@ function save(spec, rawValues) {
   }
 
   const cfg = readJson(CLAUDE_JSON, {});
-  cfg.projects ??= {};
-  cfg.projects[PROJECT] ??= {};
-  cfg.projects[PROJECT].mcpServers ??= {};
   if (UNSAFE_NAMES.has(spec.id)) throw new Error('server id is reserved');
 
+  // Default to user scope: "connect my Notion" means everywhere, not just the folder
+  // they happened to be standing in. Project scope is opt-in, for a credential that
+  // genuinely belongs to one codebase.
+  let servers;
+  if (spec.scope === 'project') {
+    cfg.projects ??= {};
+    cfg.projects[PROJECT] ??= {};
+    cfg.projects[PROJECT].mcpServers ??= {};
+    servers = cfg.projects[PROJECT].mcpServers;
+  } else {
+    cfg.mcpServers ??= {};
+    servers = cfg.mcpServers;
+  }
+
   if (spec.route === 'mcp-stdio') {
-    cfg.projects[PROJECT].mcpServers[spec.id] = {
+    servers[spec.id] = {
       ...winCommand(spec.command, spec.args ?? []),
       env: values,
     };
@@ -454,7 +468,7 @@ function save(spec, rawValues) {
       throw new Error('That credential cannot be used in a request header because it spans multiple lines.');
     }
 
-    cfg.projects[PROJECT].mcpServers[spec.id] = {
+    servers[spec.id] = {
       type: 'http',
       url,
       headers: { [spec.header ?? 'Authorization']: headerValue },
@@ -462,8 +476,11 @@ function save(spec, rawValues) {
   }
 
   writeJsonSafely(CLAUDE_JSON, cfg);
+  const scoped = spec.scope === 'project'
+    ? 'this project only'
+    : 'all your projects';
   return {
-    where: '~/.claude.json',
+    where: `~/.claude.json (${scoped})`,
     why: 'Your home folder, outside this project. It cannot be committed to git by accident.',
     next: `Restart Claude Code, then run /mcp to check "${spec.id}" is connected.`,
   };

@@ -195,8 +195,7 @@ check('token gate: right → 200', r1.statuses.good === 200);
 check('DNS rebinding: foreign Host → 403', r1.statuses.rebind === 403, `got ${r1.statuses.rebind}`);
 check('mcp-stdio writes server entry', r1.saved?.ok && /monday/.test(r1.config));
 check('mcp-stdio stores key in env block',
-  JSON.parse(r1.config).projects[Object.keys(JSON.parse(r1.config).projects).find((p) => p.includes('proj'))]
-    .mcpServers.monday.env.MONDAY_TOKEN === SENTINEL);
+  JSON.parse(r1.config).mcpServers.monday.env.MONDAY_TOKEN === SENTINEL);
 check('existing config preserved',
   JSON.parse(r1.config).autoUpdates === true && !!JSON.parse(r1.config).projects['/other']);
 check('backup written', r1.backup);
@@ -207,7 +206,7 @@ cleanup(d1);
 
 const d2 = sandbox();
 const r2 = await run(d2, SPEC.http, { GITHUB_TOKEN: SENTINEL });
-const httpEntry = JSON.parse(r2.config).projects[Object.keys(JSON.parse(r2.config).projects)[0]].mcpServers.github;
+const httpEntry = JSON.parse(r2.config).mcpServers.github;
 check('mcp-http builds the header from headerFormat',
   httpEntry.headers.Authorization === `Bearer ${SENTINEL}`, JSON.stringify(httpEntry.headers));
 check('mcp-http sets type and url', httpEntry.type === 'http' && !!httpEntry.url);
@@ -228,7 +227,7 @@ console.log('\n\x1b[1mE. Multi-part credentials\x1b[0m');
 const d4 = sandbox();
 const r4 = await run(d4, SPEC.twoPart,
   { DATAFORSEO_USERNAME: 'api-user@example.com', DATAFORSEO_PASSWORD: SENTINEL });
-const two = JSON.parse(r4.config).projects[Object.keys(JSON.parse(r4.config).projects)[0]].mcpServers.dataforseo;
+const two = JSON.parse(r4.config).mcpServers.dataforseo;
 check('both parts stored', two.env.DATAFORSEO_USERNAME === 'api-user@example.com'
   && two.env.DATAFORSEO_PASSWORD === SENTINEL, JSON.stringify(two.env));
 check('mixed secret/non-secret spec accepted', r4.saved?.ok === true);
@@ -355,7 +354,7 @@ if (MAC) {
     `#!/bin/sh\ncase "$*" in *"API login"*) echo "button returned:OK, text returned:api-user";; *) echo "button returned:OK, text returned:${SENTINEL}";; esac\n`);
   check('native mode saves without a browser', rG1.code === 0, rG1.out.trim());
   const cfgN = rG1.config ? JSON.parse(rG1.config) : null;
-  const entN = cfgN && Object.values(cfgN.projects)[0].mcpServers.dataforseo;
+  const entN = cfgN && cfgN.mcpServers.dataforseo;
   check('native mode collects every field of a multi-part key',
     entN?.env?.DATAFORSEO_USERNAME === 'api-user' && entN?.env?.DATAFORSEO_PASSWORD === SENTINEL,
     JSON.stringify(entN?.env));
@@ -442,7 +441,7 @@ const SELF = {
 
 const h1 = sandbox();
 const rH1 = await run(h1, SELF, { ENDPOINT: 'https://mcp.example.com/mcp', TOKEN: SENTINEL });
-const srvH = rH1.config && Object.values(JSON.parse(rH1.config).projects)[0].mcpServers.self;
+const srvH = rH1.config && JSON.parse(rH1.config).mcpServers.self;
 check('user-supplied endpoint is substituted into the url',
   srvH?.url === 'https://mcp.example.com/mcp', JSON.stringify(srvH?.url));
 cleanup(h1);
@@ -514,6 +513,56 @@ for (const [label, id] of [['path traversal', '../evil'], ['prototype', '__proto
     { toString: 'val123' });
   check('a field named toString still stores its value',
     r.saved?.ok === true && /^toString=val123$/m.test(r.env || ''), JSON.stringify(r.env));
+  cleanup(d);
+}
+
+
+// ── J. Scope ─────────────────────────────────────────────────────────────────
+console.log('\n\x1b[1mJ. Install scope\x1b[0m');
+
+{
+  // Default must be user scope: "connect my Notion" means everywhere, not just the
+  // folder the user happened to be in. Found by a real end-to-end test.
+  const d = sandbox();
+  const r = await run(d, SPEC.stdio, { MONDAY_TOKEN: SENTINEL });
+  const cfg = JSON.parse(r.config);
+  check('defaults to user scope (top-level mcpServers)',
+    !!cfg.mcpServers?.monday, JSON.stringify(Object.keys(cfg)));
+  check('does not write a project entry by default',
+    !cfg.projects || !Object.values(cfg.projects).some((p) => p.mcpServers?.monday));
+  check('confirmation says it applies everywhere',
+    /all your projects/.test(r.saved?.where || ''), r.saved?.where);
+  cleanup(d);
+}
+
+{
+  const d = sandbox();
+  const r = await run(d, { ...SPEC.stdio, scope: 'project' }, { MONDAY_TOKEN: SENTINEL });
+  const cfg = JSON.parse(r.config);
+  check('scope:project writes under the project path',
+    Object.values(cfg.projects || {}).some((p) => p.mcpServers?.monday),
+    JSON.stringify(cfg));
+  check('scope:project does not write user scope', !cfg.mcpServers?.monday);
+  check('confirmation says this project only',
+    /this project only/.test(r.saved?.where || ''), r.saved?.where);
+  cleanup(d);
+}
+
+{
+  const d = sandbox();
+  check('rejects an unknown scope value',
+    !(await run(d, { ...SPEC.stdio, scope: 'global' }, null)).started);
+  cleanup(d);
+}
+
+{
+  // Existing user-scope servers must survive.
+  const d = sandbox();
+  const r = await run(d, SPEC.stdio, { MONDAY_TOKEN: SENTINEL },
+    { preConfig: JSON.stringify({ mcpServers: { existing: { command: 'keep' } } }) });
+  const cfg = JSON.parse(r.config);
+  check('preserves other user-scope servers',
+    !!cfg.mcpServers?.existing && !!cfg.mcpServers?.monday, JSON.stringify(cfg.mcpServers));
   cleanup(d);
 }
 

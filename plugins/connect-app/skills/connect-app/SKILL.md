@@ -73,7 +73,8 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
 ### 4. Afterwards
 
 - **MCP routes:** tell them to restart Claude Code, then `/mcp` shows the server. A bad
-  key shows as `failed` with the HTTP status.
+  key shows as `failed` with the HTTP status. Tell them whether it applies everywhere
+  (the default) or only to this folder, so a missing server later is not a mystery.
 - **`.env` route:** write code that reads `process.env.X` / `os.environ["X"]`.
   **Never** `cat` the `.env` or open it with a file tool. You do not need the value —
   the runtime substitutes it when the code runs.
@@ -87,6 +88,7 @@ Re-running simply overwrites, so fixing a wrong key is just running it again.
 | `service` | Display name, shown to the user |
 | `route` | `mcp-stdio` \| `mcp-http` \| `env` |
 | `id` | Server key in the config. MCP routes only. Letters, numbers, `-`, `_` |
+| `scope` | `user` (default) or `project`. MCP routes only. See below |
 | `command`, `args` | `mcp-stdio` only. `npx` is shimmed to `cmd /c npx` on Windows |
 | `url`, `header`, `headerFormat` | `mcp-http` only. `{FIELD_NAME}` is substituted into **both** url and header, so a self-hosted endpoint can be user-supplied |
 | `fields[]` | `name`, `label`, `secret`, `hint`, `where`, `multiline` |
@@ -100,6 +102,11 @@ check it.
 **`"multiline": true`** for credentials that genuinely span lines (PEM private keys,
 service-account JSON). These automatically use a browser textarea, since an OS dialog is
 single-line.
+
+**Scope.** Leave `scope` unset for almost everything. The default, `user`, makes the
+connection work in every folder — which is what someone means when they say "connect my
+Notion". Only set `"scope": "project"` when the credential genuinely belongs to one
+codebase, such as a staging key for a specific app, and say so out loud when you do.
 
 Run with **no spec at all** for a generic "name it and paste it" form that writes to `.env`.
 
@@ -128,7 +135,11 @@ Then run the tool. Staying calm matters. A revoked key is a non-event.
 
 ## Where things end up
 
-| Route | Destination | In git? |
-|---|---|---|
-| `mcp-stdio`, `mcp-http` | `~/.claude.json` — home folder, outside the project | No |
-| `env` | `.env` in the project | No, gitignored automatically |
+| Route | Destination | Applies to | In git? |
+|---|---|---|---|
+| `mcp-stdio`, `mcp-http` | `~/.claude.json`, top-level `mcpServers` | every folder (default) | No |
+| same, with `"scope": "project"` | `~/.claude.json`, under that project path | that folder only | No |
+| `env` | `.env` in the project | that project | No, gitignored automatically |
+
+Either way the credential lands in your home folder or a gitignored file, never somewhere
+it can be committed.
