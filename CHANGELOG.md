@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.6.0
+
+**Your other sessions can now find what you connected.**
+
+An MCP server works in every folder. A `.env` key does not — it belongs to one project and
+is invisible from anywhere else, which is how the same credential ends up stored twice
+under two names.
+
+- Every save is recorded in `~/.claude/connected-apps.json`: service, variable names, and
+  location. **Never values.** A later session in any folder reads it and reuses the
+  existing key instead of collecting another copy
+- The skill checks that file first and says so if an app is already connected
+- **It no longer asks where to save.** Someone connecting their first app has no basis to
+  answer. It decides — an existing keys file, else an existing `.env`, else the current
+  project — and states the result in one line
+
 ## 1.5.0
 
 **The `.env` route no longer guesses which folder you meant.**

@@ -34,7 +34,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync, realpathSync, statSync, mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -406,6 +406,41 @@ function openBrowser(url) {
   child.unref();
 }
 
+// ─── the index ───────────────────────────────────────────────────────────────
+
+/**
+ * A .env belongs to one project, so a key saved in projectA is invisible from projectB.
+ * MCP routes do not have this problem because they live in ~/.claude.json.
+ *
+ * This records WHERE each credential went — service, variable names, file path — so a
+ * later session anywhere on the machine can find it instead of storing a second copy.
+ *
+ * It never contains a value. Names and paths only.
+ */
+const INDEX = join(homedir(), '.claude', 'connected-apps.json');
+
+function recordInIndex(spec, names, location) {
+  try {
+    // ~/.claude normally exists, but not on a fresh machine, and the failure would be
+    // silent because this whole block is best-effort.
+    mkdirSync(dirname(INDEX), { recursive: true, mode: 0o700 });
+    let idx;
+    try { idx = readJson(INDEX, {}); } catch { idx = {}; }  // rewrite a corrupt index
+    idx.apps ??= {};
+    idx.apps[spec.service] = {
+      route: spec.route,
+      variables: names,          // names only, never values
+      location,
+      updated: new Date().toISOString().slice(0, 10),
+    };
+    idx.note = 'Where each connected app keeps its credentials. Names and paths only, never values.';
+    writeFileSync(INDEX, JSON.stringify(idx, null, 2), { mode: 0o600 });
+    lockDown(INDEX);
+  } catch {
+    // The index is a convenience. Never fail a save because it could not be written.
+  }
+}
+
 // ─── writing ─────────────────────────────────────────────────────────────────
 
 function save(spec, rawValues) {
@@ -462,6 +497,7 @@ function save(spec, rawValues) {
     }
     for (const [k, v] of Object.entries(values)) upsertEnv(envPath, k, v);
     const added = ensureGitignored(basename(envPath), envDir);
+    recordInIndex(spec, Object.keys(values), envPath);
     return {
       where: envPath.replace(homedir(), '~'),
       why: added ? 'Added .env to .gitignore so it cannot be committed.' : '.env was already gitignored.',
@@ -521,6 +557,7 @@ function save(spec, rawValues) {
   }
 
   writeJsonSafely(CLAUDE_JSON, cfg);
+  recordInIndex(spec, Object.keys(values), `~/.claude.json (MCP server "${spec.id}")`);
   const scoped = spec.scope === 'project'
     ? 'this project only'
     : 'all your projects';

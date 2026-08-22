@@ -54,24 +54,34 @@ ClickUp tokens now expire after 90 days and need 2FA.
 Where the provider offers a scoped or read-only key, tell them to use it. That is the
 single biggest reduction in blast radius available, and it is usually one checkbox.
 
-### 3. For the `.env` route, say where it is going first
+### 3. First, check whether it is already connected
 
-The tool writes to the current folder unless the spec names a path, and the current
-folder is only right by luck. Before running it:
+Before setting anything up, read `~/.claude/connected-apps.json` if it exists. It records
+which apps are already connected, the variable names used, and where each one lives. It
+contains **no values**, only names and paths.
 
-1. Look for where their keys already live — a `.env` in the project, or one central file
-   they reuse. `ls -a` and reading the *names* in a nearby `.env` is enough; never read
-   the values.
-2. **Say where you are about to write, and let them redirect you.** One line:
-   *"I'll add this to `resend-migration/.env`, where your other keys are. Right place?"*
-3. Pass that location as `"path"` in the spec.
+If the service is already there, say so and use the existing key. Do not collect a second
+copy under a different name — that is the main way this gets messy.
 
-This matters because a key in `projectA/.env` is invisible to code in `projectB`. Guessing
-wrong means a second copy of the same credential later, which is the thing to avoid.
+### 4. For the `.env` route, decide the location and state it
 
-MCP routes need none of this — they always go to `~/.claude.json` and work everywhere.
+**Do not ask the user where to put it.** Someone connecting their first app has no basis
+to answer, and the question just makes them anxious. Decide, then tell them in one line.
 
-### 4. Run the tool with a spec
+Decide in this order:
+
+1. A file `~/.claude/connected-apps.json` already points at for this user's other keys
+2. A `.env` that already exists in the current project
+3. The current project folder
+
+Then state it plainly: *"Saved to your project's `.env` file."* Only ask when there is a
+genuine conflict, such as two existing key files and no way to tell which is current.
+
+Pass the chosen location as `"path"` in the spec.
+
+MCP routes need none of this — they go to `~/.claude.json` and work in every folder.
+
+### 5. Run the tool with a spec
 
 Pipe a JSON spec on stdin. The tool knows nothing about any service — you supply all of it.
 
@@ -96,7 +106,7 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
 
 **Never** put a key in the spec, in a command argument, or anywhere else you can see.
 
-### 5. Afterwards
+### 6. Afterwards
 
 - **MCP routes:** tell them to restart Claude Code, then `/mcp` shows the server. A bad
   key shows as `failed` with the HTTP status. Tell them whether it applies everywhere
@@ -107,7 +117,7 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
 
 Re-running simply overwrites, so fixing a wrong key is just running it again.
 
-### 6. Prove it works
+### 7. Prove it works
 
 Do not stop at "saved". Check it, and tell them the result in plain language.
 
@@ -191,3 +201,7 @@ Then run the tool. Staying calm matters. A revoked key is a non-event.
 
 Either way the credential lands in your home folder or a gitignored file, never somewhere
 it can be committed.
+
+Every save is also recorded in `~/.claude/connected-apps.json` — service, variable names
+and location, never values — so a later session in a different folder can find an existing
+key instead of collecting a second copy of it.

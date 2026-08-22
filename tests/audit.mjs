@@ -745,5 +745,63 @@ async function runPath(target, extra = {}) {
   check('no path still defaults to the current folder', /MY_KEY=/.test(r.cwdEnv || ''));
 }
 
+
+// ── N. The connected-apps index ──────────────────────────────────────────────
+console.log('\n\x1b[1mN. Connected-apps index\x1b[0m');
+
+async function runIndexed(dir, spec, values, pre) {
+  const r = await run(dir, spec, values, pre);
+  const p = join(dir, 'home', '.claude', 'connected-apps.json');
+  return { ...r, index: existsSync(p) ? readFileSync(p, 'utf8') : null,
+    indexMode: existsSync(p) ? statSync(p).mode & 0o777 : null };
+}
+
+{
+  const d = sandbox();
+  const r = await runIndexed(d, SPEC.stdio, { MONDAY_TOKEN: SENTINEL });
+  const idx = r.index ? JSON.parse(r.index) : null;
+  check('an MCP save is recorded in the index', !!idx?.apps?.['Monday.com'], r.index);
+  check('the index records the variable NAME',
+    idx?.apps?.['Monday.com']?.variables?.includes('MONDAY_TOKEN'));
+  check('THE INDEX CONTAINS NO VALUE', !(r.index || '').includes(SENTINEL),
+    'SECRET LEAKED INTO THE INDEX');
+  if (!WIN) check('index is locked to 600', r.indexMode === 0o600, `${r.indexMode?.toString(8)}`);
+  cleanup(d);
+}
+
+{
+  const d = sandbox();
+  const r = await runIndexed(d, SPEC.env, { MY_KEY: SENTINEL });
+  const idx = r.index ? JSON.parse(r.index) : null;
+  check('an .env save records its file path so a later session can find it',
+    /\.env$/.test(idx?.apps?.['Some API']?.location || ''), idx?.apps?.['Some API']?.location);
+  check('.env index entry contains no value', !(r.index || '').includes(SENTINEL));
+  cleanup(d);
+}
+
+{
+  // Two apps must accumulate, not overwrite each other.
+  const d = sandbox();
+  await run(d, SPEC.stdio, { MONDAY_TOKEN: SENTINEL });
+  const r = await runIndexed(d, SPEC.twoPart,
+    { DATAFORSEO_USERNAME: 'u', DATAFORSEO_PASSWORD: SENTINEL });
+  const idx = JSON.parse(r.index);
+  check('multiple apps accumulate in the index',
+    !!idx.apps['Monday.com'] && !!idx.apps.DataForSEO, Object.keys(idx.apps).join(','));
+  check('a multi-part entry lists every variable',
+    idx.apps.DataForSEO.variables.length === 2, JSON.stringify(idx.apps.DataForSEO.variables));
+  cleanup(d);
+}
+
+{
+  // A broken index must never block a save.
+  const d = sandbox();
+  mkdirSync(join(d, 'home', '.claude'), { recursive: true });
+  writeFileSync(join(d, 'home', '.claude', 'connected-apps.json'), '{ not json');
+  const r = await run(d, SPEC.env, { MY_KEY: SENTINEL });
+  check('a corrupt index does not block the save', r.saved?.ok === true, JSON.stringify(r.saved));
+  cleanup(d);
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);
