@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.0
+
+**Verify before you revoke.** A real rotation deleted a working key before the replacement
+was proven, and the replacement failed for a reason that had nothing to do with the key —
+an IP allowlist. The old credential was fine and is now gone.
+
+- The skill never suggests deleting the old key until the new one has passed a live call
+- Before recommending a rotation, say what the error actually indicates. IP allowlists,
+  unverified domains, plan gating and unshared resources all look like auth failures and
+  none of them are fixed by a new key
+
+**Index entries written by older versions are migrated** rather than left carrying both
+the old `variables`/`location` and the new `fields`/`path`. Hand-written notes survive.
+
 ## 1.7.0
 
 **One index shape, so the same app cannot appear twice.**

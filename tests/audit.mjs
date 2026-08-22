@@ -825,5 +825,24 @@ async function runIndexed(dir, spec, values, pre) {
   cleanup(d);
 }
 
+
+{
+  // A real index written by 1.6.0: capitalised key, variables/location.
+  const d = sandbox();
+  mkdirSync(join(d, 'home', '.claude'), { recursive: true });
+  writeFileSync(join(d, 'home', '.claude', 'connected-apps.json'), JSON.stringify({
+    version: 1,
+    apps: { Monday: { route: 'env', variables: ['OLD'], location: '/old/.env',
+      updated: '2026-01-01', note: 'hand written' } },
+  }));
+  const r = await runIndexed(d, { ...SPEC.stdio, id: 'monday' }, { MONDAY_TOKEN: SENTINEL });
+  const e = JSON.parse(r.index).apps.monday;
+  check('legacy entry migrates to the current shape', !!e?.fields && !!e?.path, JSON.stringify(e));
+  check('legacy variables/location are removed, not left alongside',
+    !('variables' in (e || {})) && !('location' in (e || {})), JSON.stringify(e));
+  check('a hand-written note survives migration', e?.note === 'hand written');
+  cleanup(d);
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);

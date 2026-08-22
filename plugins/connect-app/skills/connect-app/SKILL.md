@@ -47,6 +47,13 @@ later want Claude to read their pages directly. Do not silently pick one and hid
 
 ### 2. Walk them through getting the key
 
+**Never tell them to delete the old key before the new one is proven.** If they are
+rotating a credential, the order is: generate the new one, save it, verify it with a live
+call, and only then revoke the old one. Reversed, a failure leaves them with nothing
+working and no way back — and the cause is often not the key at all, so the old one was
+fine.
+
+
 Tell them exactly where to click: "Monday.com → your avatar → Developers → My access
 tokens". Mention gotchas — DataForSEO's API credentials differ from the dashboard login;
 ClickUp tokens now expire after 90 days and need 2FA.
@@ -161,6 +168,11 @@ Do not stop at "saved". Check it, and tell them the result in plain language.
   value into a command, and never print the response body if it might contain the key.
 - **MCP routes:** `/mcp` after a restart. `failed` with a 401 means the key; anything else
   usually means a setup step the provider still needs.
+
+**A failure here is often not the key.** IP allowlists, unverified domains, plan gating and
+unshared resources all produce authentication errors that a new key will not fix. Say what
+the response actually indicates before suggesting they generate another one. Rotating a
+credential to chase an error that was never about the credential costs them a working key.
 
 A 200 that returns nothing is often *not* a failure — Notion integrations start with
 access to no pages until the user shares one. Say which of the two it is, so they are not

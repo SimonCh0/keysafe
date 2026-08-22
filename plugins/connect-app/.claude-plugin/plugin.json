@@ -1,7 +1,7 @@
 {
   "name": "connect-app",
   "description": "Connect any app or service to Claude without your API key ever entering the chat. Claude works out what the service needs, then a small window on your own computer collects the key and writes it where it belongs.",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "author": {
     "name": "Simon Chadwick"
   },

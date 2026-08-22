@@ -443,6 +443,12 @@ function recordInIndex(spec, names, location) {
       }
     }
 
+    // Earlier versions used variables/location. Drop them on merge, otherwise an entry
+    // carries both spellings and a reader has to guess which is current.
+    delete prior.variables;
+    delete prior.location;
+    delete prior.updated;
+
     idx.apps[key] = {
       ...prior,                            // keep anything Claude added, e.g. client, note
       service: spec.service,
