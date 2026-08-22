@@ -421,17 +421,36 @@ const INDEX = join(homedir(), '.claude', 'connected-apps.json');
 
 function recordInIndex(spec, names, location) {
   try {
-    // ~/.claude normally exists, but not on a fresh machine, and the failure would be
-    // silent because this whole block is best-effort.
     mkdirSync(dirname(INDEX), { recursive: true, mode: 0o700 });
     let idx;
     try { idx = readJson(INDEX, {}); } catch { idx = {}; }  // rewrite a corrupt index
+    idx.version = 1;
     idx.apps ??= {};
-    idx.apps[spec.service] = {
+
+    // Key on a lowercase slug so "Notion", "notion" and "NOTION" are one entry.
+    // Claude may also write this file directly when no save was needed, so the shape
+    // and the key have to match exactly or the same app lands in it twice.
+    const key = String(spec.id || spec.service).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    // Merge anything already recorded under a differently-cased key, then drop it, so
+    // extras Claude added (client, note) survive rather than being silently lost.
+    let prior = idx.apps[key] ?? {};
+    for (const existing of Object.keys(idx.apps)) {
+      const slug = existing.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (existing !== key && slug === key) {
+        prior = { ...idx.apps[existing], ...prior };
+        delete idx.apps[existing];
+      }
+    }
+
+    idx.apps[key] = {
+      ...prior,                            // keep anything Claude added, e.g. client, note
+      service: spec.service,
       route: spec.route,
-      variables: names,          // names only, never values
-      location,
-      updated: new Date().toISOString().slice(0, 10),
+      path: location,
+      fields: names,                       // names only, never values
+      ...(spec.revoke ? { revoke: spec.revoke } : {}),
+      verified: new Date().toISOString().slice(0, 10),
     };
     idx.note = 'Where each connected app keeps its credentials. Names and paths only, never values.';
     writeFileSync(INDEX, JSON.stringify(idx, null, 2), { mode: 0o600 });

@@ -760,9 +760,9 @@ async function runIndexed(dir, spec, values, pre) {
   const d = sandbox();
   const r = await runIndexed(d, SPEC.stdio, { MONDAY_TOKEN: SENTINEL });
   const idx = r.index ? JSON.parse(r.index) : null;
-  check('an MCP save is recorded in the index', !!idx?.apps?.['Monday.com'], r.index);
+  check('an MCP save is recorded in the index', !!idx?.apps?.monday, r.index);
   check('the index records the variable NAME',
-    idx?.apps?.['Monday.com']?.variables?.includes('MONDAY_TOKEN'));
+    idx?.apps?.monday?.fields?.includes('MONDAY_TOKEN'));
   check('THE INDEX CONTAINS NO VALUE', !(r.index || '').includes(SENTINEL),
     'SECRET LEAKED INTO THE INDEX');
   if (!WIN) check('index is locked to 600', r.indexMode === 0o600, `${r.indexMode?.toString(8)}`);
@@ -774,7 +774,7 @@ async function runIndexed(dir, spec, values, pre) {
   const r = await runIndexed(d, SPEC.env, { MY_KEY: SENTINEL });
   const idx = r.index ? JSON.parse(r.index) : null;
   check('an .env save records its file path so a later session can find it',
-    /\.env$/.test(idx?.apps?.['Some API']?.location || ''), idx?.apps?.['Some API']?.location);
+    /\.env$/.test(idx?.apps?.['some-api']?.path || ''), JSON.stringify(idx?.apps));
   check('.env index entry contains no value', !(r.index || '').includes(SENTINEL));
   cleanup(d);
 }
@@ -787,9 +787,9 @@ async function runIndexed(dir, spec, values, pre) {
     { DATAFORSEO_USERNAME: 'u', DATAFORSEO_PASSWORD: SENTINEL });
   const idx = JSON.parse(r.index);
   check('multiple apps accumulate in the index',
-    !!idx.apps['Monday.com'] && !!idx.apps.DataForSEO, Object.keys(idx.apps).join(','));
+    !!idx.apps.monday && !!idx.apps.dataforseo, Object.keys(idx.apps).join(','));
   check('a multi-part entry lists every variable',
-    idx.apps.DataForSEO.variables.length === 2, JSON.stringify(idx.apps.DataForSEO.variables));
+    idx.apps.dataforseo.fields.length === 2, JSON.stringify(idx.apps.dataforseo.fields));
   cleanup(d);
 }
 
@@ -800,6 +800,28 @@ async function runIndexed(dir, spec, values, pre) {
   writeFileSync(join(d, 'home', '.claude', 'connected-apps.json'), '{ not json');
   const r = await run(d, SPEC.env, { MY_KEY: SENTINEL });
   check('a corrupt index does not block the save', r.saved?.ok === true, JSON.stringify(r.saved));
+  cleanup(d);
+}
+
+
+{
+  // Claude sometimes writes this file itself, when a key already existed and the tool
+  // never ran. A differently-cased key must not produce a second entry for the same app.
+  const d = sandbox();
+  mkdirSync(join(d, 'home', '.claude'), { recursive: true });
+  writeFileSync(join(d, 'home', '.claude', 'connected-apps.json'), JSON.stringify({
+    version: 1,
+    apps: { Monday: { service: 'Monday.com', route: 'env', path: '/old/.env',
+      fields: ['OLD_NAME'], client: '/old/client.py' } },
+  }));
+  const r = await runIndexed(d, { ...SPEC.stdio, id: 'monday' }, { MONDAY_TOKEN: SENTINEL });
+  const idx = JSON.parse(r.index);
+  check('a differently-cased existing entry is merged, not duplicated',
+    Object.keys(idx.apps).length === 1, Object.keys(idx.apps).join(','));
+  check('the merged entry has the new location',
+    idx.apps.monday?.path !== '/old/.env', JSON.stringify(idx.apps.monday));
+  check('extra fields Claude added are preserved',
+    idx.apps.monday?.client === '/old/client.py', JSON.stringify(idx.apps.monday));
   cleanup(d);
 }
 

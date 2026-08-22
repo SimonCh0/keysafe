@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.7.0
+
+**One index shape, so the same app cannot appear twice.**
+
+Real use surfaced this: when a key already exists the tool never runs, so Claude writes
+`connected-apps.json` itself — and invented a different shape. The next tool save would
+have added a second entry for the same app under a different key.
+
+- The schema is now documented in the skill, and the tool writes exactly that shape
+- Entries are keyed on a lowercase slug, so `Notion` and `notion` are one entry
+- A differently-cased existing entry is merged, keeping extras Claude added such as
+  `client` and `note`, rather than being overwritten
+- When an existing key uses a non-canonical variable name, the skill keeps it rather than
+  breaking working code, but says that adding the MCP server later will not find it
+
 ## 1.6.0
 
 **Your other sessions can now find what you connected.**

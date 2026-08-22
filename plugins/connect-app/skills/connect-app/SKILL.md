@@ -60,8 +60,36 @@ Before setting anything up, read `~/.claude/connected-apps.json` if it exists. I
 which apps are already connected, the variable names used, and where each one lives. It
 contains **no values**, only names and paths.
 
-If the service is already there, say so and use the existing key. Do not collect a second
-copy under a different name — that is the main way this gets messy.
+If the service is already there, say so, verify the existing key still works, and use it.
+Do not collect a second copy — that is the main way this gets messy.
+
+**If you write to this file yourself** — which happens when a key already existed so the
+tool never ran — use exactly this shape. A different key or different field names produces
+two entries for the same app, which defeats the point:
+
+```json
+{
+  "version": 1,
+  "apps": {
+    "notion": {
+      "service": "Notion",
+      "route": "env",
+      "path": "/Users/you/project/.env",
+      "fields": ["NOTION_TOKEN"],
+      "revoke": "https://www.notion.so/profile/integrations",
+      "verified": "2026-08-22"
+    }
+  }
+}
+```
+
+The key is a lowercase slug of the service. `client` and `note` are optional extras and
+are preserved. **Never put a value in this file.**
+
+**If the existing variable name is not the canonical one** — say `NOTION_API_KEY` where the
+official MCP server wants `NOTION_TOKEN` — keep using the existing name rather than
+breaking working code, but tell them in one line that adding the MCP server later will not
+find it under that name.
 
 ### 4. For the `.env` route, decide the location and state it
 
