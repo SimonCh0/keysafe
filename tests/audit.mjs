@@ -566,5 +566,59 @@ console.log('\n\x1b[1mJ. Install scope\x1b[0m');
   cleanup(d);
 }
 
+
+// ── K. Bare-folder guard ─────────────────────────────────────────────────────
+console.log('\n\x1b[1mK. Bare-folder guard (.env route)\x1b[0m');
+
+/** Run with the sandbox home laid out so cwd IS a bare folder. */
+async function runIn(sub, spec, values) {
+  const dir = sandbox();
+  const home = join(dir, 'home');
+  const cwd = sub ? join(home, sub) : home;
+  mkdirSync(cwd, { recursive: true });
+  const child = spawn(process.execPath, [TOOL, '--browser'], {
+    cwd, env: { ...process.env, HOME: home, USERPROFILE: home,
+      PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  child.stdin.write(JSON.stringify(spec)); child.stdin.end();
+  let out = ''; child.stdout.on('data', (d) => (out += d));
+  const url = await new Promise((res) => {
+    const t = setTimeout(() => res(null), 6000);
+    child.stdout.on('data', () => {
+      const m = out.match(/http:\/\/127\.0\.0\.1:(\d+)\/\?t=([a-f0-9]+)/);
+      if (m) { clearTimeout(t); res({ base: `http://127.0.0.1:${m[1]}`, token: m[2] }); }
+    });
+  });
+  let saved = null;
+  if (url) {
+    saved = await (await fetch(`${url.base}/save?t=${url.token}`, { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify(values) })).json();
+  }
+  await new Promise((r) => { const t = setTimeout(() => { child.kill(); r(); }, 3000); child.on('exit', () => { clearTimeout(t); r(); }); });
+  const madeEnv = existsSync(join(cwd, '.env'));
+  cleanup(dir);
+  return { saved, madeEnv };
+}
+
+for (const folder of ['Desktop', 'Documents', 'Downloads', null]) {
+  const r = await runIn(folder, SPEC.env, { MY_KEY: SENTINEL });
+  const label = folder || 'the home folder';
+  check(`.env route refuses to write into ${label}`, r.saved?.ok === false, JSON.stringify(r.saved));
+  check(`no .env left behind in ${label}`, !r.madeEnv);
+}
+
+{
+  const r = await runIn('code/myapp', SPEC.env, { MY_KEY: SENTINEL });
+  check('.env route still works in a real project folder', r.saved?.ok === true && r.madeEnv,
+    JSON.stringify(r.saved));
+}
+
+{
+  // MCP routes go to ~/.claude.json, so the folder must not matter at all.
+  const r = await runIn('Desktop', SPEC.stdio, { MONDAY_TOKEN: SENTINEL });
+  check('MCP route is unaffected by a bare folder', r.saved?.ok === true, JSON.stringify(r.saved));
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);

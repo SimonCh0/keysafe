@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+**Fixed: a save failure in native mode silently reopened a browser instead of saying
+what was wrong.** Any rejected value — a bad key, a bad destination — fell through to the
+browser fallback and re-asked, hiding the reason. Dialog failures still fall back; value
+failures now report plainly.
+
+**Added: the `.env` route refuses to write into Desktop, Documents, Downloads or your
+home folder.** A `.env` belongs inside a project. Running from the Desktop used to scatter
+`.env` and `.gitignore` there and put the key somewhere nothing would read it. MCP routes
+are unaffected, since they always write to `~/.claude.json`.
+
 ## 1.1.0
 
 **Fixed: connections were only working in the folder you were standing in.**

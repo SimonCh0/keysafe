@@ -34,7 +34,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync, realpathSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -414,6 +414,27 @@ function save(spec, rawValues) {
   values = clean(values, multiline, secrets);
 
   if (spec.route === 'env') {
+    // A .env belongs to a project. Writing one into Desktop or the home folder
+    // scatters junk and puts the key somewhere nothing will read it. MCP routes are
+    // immune to this because they always write to ~/.claude.json.
+    // Resolve both sides: on macOS process.cwd() returns /private/var/... while
+    // homedir() returns /var/..., so an unresolved comparison silently never matches.
+    const real = (p) => { try { return realpathSync(p); } catch { return p; } };
+    const home = real(homedir());
+    const bare = new Set([
+      home, '/',
+      ...['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public']
+        .map((f) => join(home, f)),
+    ].map((p) => real(p)));
+    const here = real(PROJECT).replace(/(.)[\\/]+$/, '$1');
+    if (bare.has(here)) {
+      // Name it the way the user thinks of it. The folder's basename would read as
+      // "your simon" for a home directory, which is nonsense.
+      const label = here === home ? 'home folder' : `${here.split(/[\\/]/).pop()} folder`;
+      throw new Error(
+        `This is your ${label}, not a project folder. A .env file belongs inside the `
+        + `project that uses it. Open the project folder and run this again.`);
+    }
     const envPath = join(PROJECT, '.env');
     for (const [k, v] of Object.entries(values)) upsertEnv(envPath, k, v);
     const added = ensureGitignored('.env');
@@ -616,7 +637,18 @@ if (!process.argv.includes('--browser') && !needsTextarea) {
       Object.keys(values).forEach((k) => delete values[k]);
       values[''] = name; values.__value = secret;
     }
-    const summary = save(spec, values);
+
+    // Past this point the dialog worked, so a failure is a rejected value or a bad
+    // destination. Report it plainly. Falling back to a browser here would reopen a
+    // window and re-ask, hiding the actual reason from the user.
+    let summary;
+    try {
+      summary = save(spec, values);
+    } catch (err) {
+      console.error(`\n  ${err.message}\n`);   // names the problem, never the value
+      try { notify(`Could not save.\n\n${err.message}`); } catch {}
+      process.exit(1);
+    }
 
     // Confirm in a dialog too, so the user sees it without reading the terminal.
     const done = `${spec.service} is set up.\n\n`
