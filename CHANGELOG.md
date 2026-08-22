@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0
+
+Skill guidance only; the tool is unchanged.
+
+Two real runs connected Notion two different ways — one via the official MCP server as
+`NOTION_TOKEN`, one via the REST API as `NOTION_API_KEY`. Both worked, but the same
+credential under two names means neither tool finds the other's copy.
+
+- Use the canonical variable name the official SDK or MCP server expects, even when
+  storing to `.env`
+- When an MCP server exists but the task only needs a script, store the key *and* mention
+  the connection option in one line, rather than silently picking one
+- New step: prove the key works. A single authenticated call with `$VAR` expanded by the
+  shell, so the value never reaches the model. Distinguish "auth failed" from "auth fine,
+  nothing shared yet", which is the normal first state for a Notion integration
+
 ## 1.3.0
 
 **Fixed: nothing could hang forever any more.**

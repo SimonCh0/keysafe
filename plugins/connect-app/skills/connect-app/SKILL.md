@@ -36,6 +36,15 @@ itself. This matters more than it sounds:
 
 `npm view <package> readme` is a fast way to confirm the real variable names.
 
+**Use the canonical variable name even on the `.env` route.** If the service has an
+official MCP server or SDK, name the variable what *that* expects — `NOTION_TOKEN`, not
+`NOTION_API_KEY`. Otherwise the user ends up with two copies of the same credential under
+different names the first time they add the MCP server, and neither tool finds the other's.
+
+**If an MCP server exists but the task only needs a script, say so.** Store the key for the
+script, and tell them in one line that a ready-made Notion connection also exists if they
+later want Claude to read their pages directly. Do not silently pick one and hide the other.
+
 ### 2. Walk them through getting the key
 
 Tell them exactly where to click: "Monday.com → your avatar → Developers → My access
@@ -80,6 +89,27 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
   the runtime substitutes it when the code runs.
 
 Re-running simply overwrites, so fixing a wrong key is just running it again.
+
+### 5. Prove it works
+
+Do not stop at "saved". Check it, and tell them the result in plain language.
+
+- **`.env` route:** make one cheap authenticated call, letting the *shell* substitute the
+  value so it never reaches you:
+
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}' https://api.notion.com/v1/users/me \
+    -H "Authorization: Bearer $NOTION_TOKEN" -H "Notion-Version: 2022-06-28"
+  ```
+
+  `$VAR` is expanded by the shell at run time. Never echo the variable, never paste the
+  value into a command, and never print the response body if it might contain the key.
+- **MCP routes:** `/mcp` after a restart. `failed` with a 401 means the key; anything else
+  usually means a setup step the provider still needs.
+
+A 200 that returns nothing is often *not* a failure — Notion integrations start with
+access to no pages until the user shares one. Say which of the two it is, so they are not
+left thinking the key is broken.
 
 ## Spec reference
 
