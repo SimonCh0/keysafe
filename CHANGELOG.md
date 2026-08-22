@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0
+
+**Fixed: nothing could hang forever any more.**
+
+Neither entry path had a timeout. If a student closed the browser tab, never opened it, or
+walked away from the dialog, the process ran indefinitely and whatever launched it waited
+indefinitely too.
+
+- The browser now gives up after ten minutes with a message saying to run it again
+- The OS dialog does the same. On macOS, AppleScript's own "giving up" is treated as a
+  timeout rather than an empty box, so it fails once instead of re-asking three times
+- Windows and Linux dialogs get a hard child-process timeout as a backstop
+- Override with `KEYSAFE_TIMEOUT_MS` if ten minutes is wrong for you
+
+Verified that a normal OK still saves: AppleScript reports `gave up:false` on a real
+click, which the timeout check correctly ignores.
+
 ## 1.2.0
 
 **Fixed: a save failure in native mode silently reopened a browser instead of saying

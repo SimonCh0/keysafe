@@ -267,8 +267,11 @@ function ensureGitignored(entry) {
  * "where to find it" links. Better for a single secret, worse for a long form.
  */
 class CancelledError extends Error {
-  constructor() { super('Cancelled — nothing was saved.'); }
+  constructor(msg) { super(msg || 'Cancelled — nothing was saved.'); }
 }
+
+// A dialog left open forever would hang the caller just as a closed browser tab did.
+const IDLE_MS = Number(process.env.KEYSAFE_TIMEOUT_MS || 10 * 60 * 1000);
 
 /** Build the prompt text. Pure, so it can be unit tested. */
 export function promptLabel(field, service, step, total, retry) {
@@ -284,7 +287,8 @@ function promptNative(field, service, step = 1, total = 1, retry = false) {
   if (process.platform === 'darwin') {
     const script = `display dialog ${q(label)} default answer "" `
       + `${field.secret ? 'with hidden answer ' : ''}`
-      + `with title ${q('Add your key safely')} with icon note`;
+      + `with title ${q('Add your key safely')} with icon note `
+      + `giving up after ${Math.round(IDLE_MS / 1000)}`;
     let out;
     try {
       out = execFileSync('osascript', ['-e', script], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -296,6 +300,11 @@ function promptNative(field, service, step = 1, total = 1, retry = false) {
       // "cancelled" depending on system locale.
       if (msg.includes('-128') || /user cancell?ed/i.test(msg)) throw new CancelledError();
       throw new Error(`Could not show the dialog: ${msg.trim() || 'unknown error'}`);
+    }
+    // "gave up" means nobody was there, which is a timeout rather than an empty box.
+    // Retrying an empty box three times would otherwise take three full timeouts.
+    if (/gave up:true/.test(out)) {
+      throw new CancelledError('Timed out waiting for the key. Run it again when you have it to hand.');
     }
     const m = out.match(/text returned:([\s\S]*?)(?:, gave up:.*)?\s*$/);
     return m ? m[1].trim() : '';
@@ -330,7 +339,7 @@ if ($f.ShowDialog() -eq 'OK') { [Console]::Out.Write($t.Text) } else { exit 1 }`
       return execFileSync('powershell', [
         '-NoProfile', '-NonInteractive', '-EncodedCommand',
         Buffer.from(ps, 'utf16le').toString('base64'),
-      ], { encoding: 'utf8' }).trim();
+      ], { encoding: 'utf8', timeout: IDLE_MS }).trim();
     } catch {
       throw new Error('Cancelled.');
     }
@@ -341,7 +350,7 @@ if ($f.ShowDialog() -eq 'OK') { [Console]::Out.Write($t.Text) } else { exit 1 }`
     return execFileSync('zenity', [
       '--entry', `--title=Add your key safely`, `--text=${label}`,
       ...(field.secret ? ['--hide-text'] : []),
-    ], { encoding: 'utf8' }).trim();
+    ], { encoding: 'utf8', timeout: IDLE_MS }).trim();
   } catch {
     throw new Error('No native dialog available on this system. Run without --native.');
   }
@@ -699,13 +708,26 @@ const server = createServer((req, res) => {
         payload = { ok: false, error: err.message };
       }
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(payload));
-      if (payload.ok) setTimeout(() => { server.close(); process.exit(0); }, 1200);
+      if (payload.ok) {
+        clearTimeout(idle);
+        setTimeout(() => { server.close(); process.exit(0); }, 1200);
+      }
     });
     return;
   }
 
   res.writeHead(404).end('not found');
 });
+
+// If the tab is closed, or never opened, nothing would ever end this process and the
+// caller would wait forever. Ten minutes is enough to go and fetch a key.
+const idle = setTimeout(() => {
+  console.error(`\n  Timed out after ${Math.round(IDLE_MS / 60000)} minutes with nothing saved.`);
+  console.error('  Run it again when you have the key to hand.\n');
+  server.close();
+  process.exit(1);
+}, IDLE_MS);
+idle.unref?.();
 
 server.listen(0, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${server.address().port}/?t=${TOKEN}`;

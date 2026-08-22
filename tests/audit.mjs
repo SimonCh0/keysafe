@@ -620,5 +620,55 @@ for (const folder of ['Desktop', 'Documents', 'Downloads', null]) {
   check('MCP route is unaffected by a bare folder', r.saved?.ok === true, JSON.stringify(r.saved));
 }
 
+
+// ── L. Timeouts (nothing may hang the caller forever) ────────────────────────
+console.log('\n\x1b[1mL. Timeouts\x1b[0m');
+
+check('native dialog asks AppleScript to give up',
+  /giving up after \$\{Math\.round\(IDLE_MS/.test(src), 'no giving-up clause');
+check('Windows and Linux dialogs pass a child timeout',
+  (src.match(/timeout: IDLE_MS/g) || []).length >= 2);
+check('browser server has an idle timeout', /const idle = setTimeout\(/.test(src));
+check('idle timer is cleared once a save lands', /clearTimeout\(idle\)/.test(src));
+
+if (MAC) {
+  // "gave up" is a timeout, not an empty box: it must not burn three retries.
+  const t1 = sandbox();
+  const r1 = await runNative(t1, SPEC.env,
+    '#!/bin/sh\necho "button returned:, text returned:, gave up:true"\n');
+  check('a timed-out dialog reports a timeout', /Timed out waiting/.test(r1.out), r1.out.trim());
+  check('a timed-out dialog writes nothing', r1.env === null);
+  cleanup(t1);
+
+  // gave up:false is the normal path and must still save.
+  const t2 = sandbox();
+  const r2 = await runNative(t2, SPEC.env,
+    `#!/bin/sh\necho "button returned:OK, text returned:${SENTINEL}, gave up:false"\n`);
+  check('a normal OK (gave up:false) still saves', /MY_KEY=/.test(r2.env || ''), r2.out.trim());
+  check('the trailing gave-up flag is not stored as part of the value',
+    !/gave up/.test(r2.env || ''), r2.env);
+  cleanup(t2);
+}
+
+{
+  // Browser mode with nobody ever posting must exit, not hang.
+  const d = sandbox();
+  const child = spawn(process.execPath, [TOOL, '--browser'], {
+    cwd: join(d, 'proj'),
+    env: { ...process.env, HOME: join(d, 'home'), USERPROFILE: join(d, 'home'),
+      PATH: `${join(d, 'bin')}:${process.env.PATH}`, KEYSAFE_TIMEOUT_MS: '1500' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  child.stdin.write(JSON.stringify(SPEC.env)); child.stdin.end();
+  let out = ''; child.stdout.on('data', (x) => (out += x)); child.stderr.on('data', (x) => (out += x));
+  const code = await new Promise((r) => {
+    const t = setTimeout(() => { child.kill(); r('HUNG'); }, 8000);
+    child.on('exit', (c) => { clearTimeout(t); r(c); });
+  });
+  check('browser mode exits when nobody uses the page', code !== 'HUNG', 'still hanging');
+  check('timeout message explains what to do', /Run it again/.test(out), out.trim());
+  cleanup(d);
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);
