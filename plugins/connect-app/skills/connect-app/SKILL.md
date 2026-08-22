@@ -54,7 +54,24 @@ ClickUp tokens now expire after 90 days and need 2FA.
 Where the provider offers a scoped or read-only key, tell them to use it. That is the
 single biggest reduction in blast radius available, and it is usually one checkbox.
 
-### 3. Run the tool with a spec
+### 3. For the `.env` route, say where it is going first
+
+The tool writes to the current folder unless the spec names a path, and the current
+folder is only right by luck. Before running it:
+
+1. Look for where their keys already live — a `.env` in the project, or one central file
+   they reuse. `ls -a` and reading the *names* in a nearby `.env` is enough; never read
+   the values.
+2. **Say where you are about to write, and let them redirect you.** One line:
+   *"I'll add this to `resend-migration/.env`, where your other keys are. Right place?"*
+3. Pass that location as `"path"` in the spec.
+
+This matters because a key in `projectA/.env` is invisible to code in `projectB`. Guessing
+wrong means a second copy of the same credential later, which is the thing to avoid.
+
+MCP routes need none of this — they always go to `~/.claude.json` and work everywhere.
+
+### 4. Run the tool with a spec
 
 Pipe a JSON spec on stdin. The tool knows nothing about any service — you supply all of it.
 
@@ -79,7 +96,7 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
 
 **Never** put a key in the spec, in a command argument, or anywhere else you can see.
 
-### 4. Afterwards
+### 5. Afterwards
 
 - **MCP routes:** tell them to restart Claude Code, then `/mcp` shows the server. A bad
   key shows as `failed` with the HTTP status. Tell them whether it applies everywhere
@@ -90,7 +107,7 @@ Run it from the user's project directory. A small OS dialog opens, they paste, i
 
 Re-running simply overwrites, so fixing a wrong key is just running it again.
 
-### 5. Prove it works
+### 6. Prove it works
 
 Do not stop at "saved". Check it, and tell them the result in plain language.
 
@@ -121,6 +138,7 @@ left thinking the key is broken.
 | `scope` | `user` (default) or `project`. MCP routes only. See below |
 | `command`, `args` | `mcp-stdio` only. `npx` is shimmed to `cmd /c npx` on Windows |
 | `url`, `header`, `headerFormat` | `mcp-http` only. `{FIELD_NAME}` is substituted into **both** url and header, so a self-hosted endpoint can be user-supplied |
+| `path` | `env` route only. Which `.env` to write. A folder gets `.env` appended. Defaults to the current folder |
 | `fields[]` | `name`, `label`, `secret`, `hint`, `where`, `multiline` |
 | `revoke` | Link shown on the confirmation screen |
 | `note` | Shown before they paste. Use for warnings and gotchas |

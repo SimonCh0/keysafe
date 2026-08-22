@@ -670,5 +670,80 @@ if (MAC) {
   cleanup(d);
 }
 
+
+// ── M. Explicit .env path ────────────────────────────────────────────────────
+console.log('\n\x1b[1mM. Explicit .env path\x1b[0m');
+
+/** Run with cwd in one folder while targeting a .env somewhere else. */
+async function runPath(target, extra = {}) {
+  const dir = sandbox();
+  const home = join(dir, 'home');
+  const cwd = join(home, 'projA');
+  const central = join(home, 'central');
+  mkdirSync(cwd, { recursive: true });
+  mkdirSync(central, { recursive: true });
+  writeFileSync(join(central, '.env'), 'EXISTING=keep\n');
+  const spec = { service: 'X', route: 'env',
+    path: target === null ? undefined : target.replace('{central}', central).replace('{home}', home),
+    fields: [{ name: 'MY_KEY', label: 'K', secret: true }], ...extra };
+  const child = spawn(process.execPath, [TOOL, '--browser'], {
+    cwd, env: { ...process.env, HOME: home, USERPROFILE: home,
+      PATH: `${join(dir, 'bin')}:${process.env.PATH}` }, stdio: ['pipe', 'pipe', 'pipe'] });
+  child.stdin.write(JSON.stringify(spec)); child.stdin.end();
+  let out = ''; child.stdout.on('data', (d) => (out += d));
+  const url = await new Promise((res) => {
+    const t = setTimeout(() => res(null), 6000);
+    child.stdout.on('data', () => {
+      const m = out.match(/http:\/\/127\.0\.0\.1:(\d+)\/\?t=([a-f0-9]+)/);
+      if (m) { clearTimeout(t); res({ base: `http://127.0.0.1:${m[1]}`, token: m[2] }); }
+    });
+  });
+  let saved = null;
+  if (url) saved = await (await fetch(`${url.base}/save?t=${url.token}`, { method: 'POST',
+    headers: { 'content-type': 'application/json' }, body: JSON.stringify({ MY_KEY: SENTINEL }) })).json();
+  await new Promise((r) => { const t = setTimeout(() => { child.kill(); r(); }, 3000); child.on('exit', () => { clearTimeout(t); r(); }); });
+  const rd = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null);
+  const res = { saved, central: rd(join(central, '.env')), cwdEnv: rd(join(cwd, '.env')),
+    gitignore: rd(join(central, '.gitignore')) };
+  cleanup(dir);
+  return res;
+}
+
+{
+  const r = await runPath('{central}/.env');
+  check('writes to the named file, not the current folder',
+    /MY_KEY=/.test(r.central || ''), JSON.stringify(r.central));
+  check('leaves no stray .env in the current folder', r.cwdEnv === null);
+  check('preserves keys already in the target file', /EXISTING=keep/.test(r.central || ''));
+  check('gitignore is created beside the target, not in the current folder',
+    (r.gitignore || '').includes('.env'), JSON.stringify(r.gitignore));
+  check('confirmation reports the real destination',
+    /central/.test(r.saved?.where || ''), r.saved?.where);
+}
+
+{
+  const r = await runPath('{central}');
+  check('a directory path gets .env appended', /MY_KEY=/.test(r.central || ''));
+}
+
+{
+  const r = await runPath('{home}/Desktop/.env');
+  check('an explicit bare-folder path is still refused', r.saved?.ok === false, JSON.stringify(r.saved));
+}
+
+{
+  // Weak assertion caught by mutation testing: without the check this still fails,
+  // but with a raw ENOENT. Assert the message is the readable one.
+  const r = await runPath('{home}/does-not-exist/.env');
+  check('a missing folder is reported, not created silently', r.saved?.ok === false);
+  check('missing-folder error is plain language, not a raw ENOENT',
+    /That folder does not exist/.test(r.saved?.error || ''), r.saved?.error);
+}
+
+{
+  const r = await runPath(null);
+  check('no path still defaults to the current folder', /MY_KEY=/.test(r.cwdEnv || ''));
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);

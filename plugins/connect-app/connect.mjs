@@ -34,11 +34,11 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, chmodSync, unlinkSync, realpathSync, statSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname, resolve, isAbsolute, basename } from 'node:path';
 
 const CLAUDE_JSON = join(homedir(), '.claude.json');
 const PROJECT = process.cwd();
@@ -242,8 +242,8 @@ function upsertEnv(path, key, value) {
   lockDown(path);
 }
 
-function ensureGitignored(entry) {
-  const path = join(PROJECT, '.gitignore');
+function ensureGitignored(entry, dir = PROJECT) {
+  const path = join(dir, '.gitignore');
   const lines = existsSync(path) ? readFileSync(path, 'utf8').split(/\r?\n/) : [];
   if (lines.some((l) => l.trim() === entry)) return false;
   lines.push(entry, '');
@@ -423,6 +423,22 @@ function save(spec, rawValues) {
   values = clean(values, multiline, secrets);
 
   if (spec.route === 'env') {
+    // Where the .env goes. Default is the current folder, but a spec can name one
+    // explicitly — someone with many projects usually keeps a single keys file, and
+    // guessing from the current folder gets that right only by luck.
+    let envPath;
+    if (spec.path) {
+      const p = isAbsolute(spec.path) ? spec.path : resolve(PROJECT, spec.path);
+      // A directory means "put a .env in here"; anything else is the file itself.
+      envPath = (existsSync(p) && statSync(p).isDirectory()) ? join(p, '.env') : p;
+      if (!existsSync(dirname(envPath))) {
+        throw new Error(`That folder does not exist: ${dirname(envPath)}`);
+      }
+    } else {
+      envPath = join(PROJECT, '.env');
+    }
+    const envDir = dirname(envPath);
+
     // A .env belongs to a project. Writing one into Desktop or the home folder
     // scatters junk and puts the key somewhere nothing will read it. MCP routes are
     // immune to this because they always write to ~/.claude.json.
@@ -435,7 +451,7 @@ function save(spec, rawValues) {
       ...['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public']
         .map((f) => join(home, f)),
     ].map((p) => real(p)));
-    const here = real(PROJECT).replace(/(.)[\\/]+$/, '$1');
+    const here = real(envDir).replace(/(.)[\\/]+$/, '$1');
     if (bare.has(here)) {
       // Name it the way the user thinks of it. The folder's basename would read as
       // "your simon" for a home directory, which is nonsense.
@@ -444,11 +460,10 @@ function save(spec, rawValues) {
         `This is your ${label}, not a project folder. A .env file belongs inside the `
         + `project that uses it. Open the project folder and run this again.`);
     }
-    const envPath = join(PROJECT, '.env');
     for (const [k, v] of Object.entries(values)) upsertEnv(envPath, k, v);
-    const added = ensureGitignored('.env');
+    const added = ensureGitignored(basename(envPath), envDir);
     return {
-      where: `.env in this project`,
+      where: envPath.replace(homedir(), '~'),
       why: added ? 'Added .env to .gitignore so it cannot be committed.' : '.env was already gitignored.',
       next: `Ask Claude to use ${Object.keys(values).join(' and ')} from your .env file.`,
     };

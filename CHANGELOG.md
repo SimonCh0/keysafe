@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.0
+
+**The `.env` route no longer guesses which folder you meant.**
+
+It wrote to whatever folder the session happened to be in. That is right for someone with
+one project and wrong for anyone with several — a key in `projectA/.env` is invisible to
+code in `projectB`, so the same credential ends up stored twice under different names.
+
+- New optional spec field `"path"`: name the `.env` to write. A folder gets `.env`
+  appended. Still defaults to the current folder when omitted
+- `.gitignore` is now created **beside the target file**, not in the current folder
+- The confirmation reports the real destination, not a generic "this project"
+- A missing folder is reported in plain language instead of a raw filesystem error
+- The bare-folder guard still applies to an explicitly named path
+
+The skill now looks for where your keys already live, states where it is about to write,
+and lets you redirect it before anything is saved.
+
 ## 1.4.0
 
 Skill guidance only; the tool is unchanged.
