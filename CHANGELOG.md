@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.9.0
+
+**Restored the read-back block, which had been lost to design churn.**
+
+Keeping the key out of the chat closes only one leak path. An agent that later runs
+`cat .env`, or a script that prints the value in an error, writes it into the session
+transcript anyway. Deny rules were built for this early, then dropped when the design
+moved to `~/.claude.json` where there was no project file to read. The `.env` route later
+returned as a first-class destination and the rules were never restored.
+
+- Saving to a `.env` now adds `Read(./.env)` and `Read(./.env.*)` deny rules to the
+  project's `.claude/settings.json`, merged without disturbing existing settings
+- A corrupt settings file is left untouched rather than overwritten, and never blocks a save
+
+**Enforcement of those rules is unverified.** They are written correctly; whether Claude
+Code always honours them could not be tested here. Documented as a known limit rather than
+claimed as a guarantee.
+
 ## 1.8.0
 
 **Verify before you revoke.** A real rotation deleted a working key before the replacement

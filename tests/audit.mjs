@@ -844,5 +844,56 @@ async function runIndexed(dir, spec, values, pre) {
   cleanup(d);
 }
 
+
+// ── O. Read-back protection ──────────────────────────────────────────────────
+console.log('\n\x1b[1mO. Read-back protection (.env route)\x1b[0m');
+
+async function runDeny(pre) {
+  const d = sandbox();
+  if (pre) {
+    mkdirSync(join(d, 'proj', '.claude'), { recursive: true });
+    writeFileSync(join(d, 'proj', '.claude', 'settings.json'), pre);
+  }
+  const r = await run(d, SPEC.env, { MY_KEY: SENTINEL });
+  const p = join(d, 'proj', '.claude', 'settings.json');
+  const out = { ...r, settings: existsSync(p) ? readFileSync(p, 'utf8') : null };
+  cleanup(d);
+  return out;
+}
+
+{
+  const r = await runDeny(null);
+  const cfg = r.settings ? JSON.parse(r.settings) : null;
+  check('a deny rule is written for the .env', cfg?.permissions?.deny?.includes('Read(./.env)'),
+    r.settings);
+  check('the dotted variants are covered too',
+    cfg?.permissions?.deny?.includes('Read(./.env.*)'));
+  check('the confirmation mentions the read-back block',
+    /blocked from reading/.test(r.saved?.why || ''), r.saved?.why);
+}
+
+{
+  const r = await runDeny('{"permissions":{"allow":["Bash(ls)"],"deny":["Read(./other)"]},"model":"opus"}');
+  const cfg = JSON.parse(r.settings);
+  check('existing deny entries survive', cfg.permissions.deny.includes('Read(./other)'));
+  check('existing allow entries survive', cfg.permissions.allow.includes('Bash(ls)'));
+  check('unrelated settings survive', cfg.model === 'opus');
+}
+
+{
+  const r = await runDeny('{"permissions":{"deny":["Read(./.env)","Read(./.env.*)"]}}');
+  const cfg = JSON.parse(r.settings);
+  check('rules are not duplicated on a repeat run',
+    cfg.permissions.deny.filter((x) => x === 'Read(./.env)').length === 1,
+    JSON.stringify(cfg.permissions.deny));
+}
+
+{
+  // Unreadable settings must not be destroyed, and must not block the save.
+  const r = await runDeny('{ not json');
+  check('a corrupt settings.json is left alone', r.settings === '{ not json');
+  check('a corrupt settings.json does not block the save', r.saved?.ok === true);
+}
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail === 0 ? 0 : 1);

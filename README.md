@@ -59,6 +59,18 @@ It quietly fixes the usual paste accidents — smart quotes copied from document
 `NAME=value` assignment, a `Bearer ` prefix, invisible characters from web pages — and
 refuses, in plain language, when something looks like more than just the key.
 
+## Known limits
+
+**The read-back block is written but its enforcement is unverified.** On the `.env` route
+the tool adds `Read(./.env)` deny rules to the project's `.claude/settings.json`. Whether
+Claude Code always honours those is not something this project has been able to test, and
+there are open reports suggesting it may not be reliable. Treat it as one layer, not a
+guarantee, and don't let it change how you'd otherwise handle a key.
+
+Keys are stored in plain files (`600`, outside git), not in the OS keychain. That matches
+the threat this tool addresses — accidental disclosure through a transcript or a commit —
+and not local disk compromise.
+
 ## Trust
 
 Zero dependencies. No network access of any kind: the tool cannot send your key anywhere

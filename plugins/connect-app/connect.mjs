@@ -242,6 +242,36 @@ function upsertEnv(path, key, value) {
   lockDown(path);
 }
 
+/**
+ * Stop the agent reading the file back.
+ *
+ * The paste never touches the transcript, but that is only one leak path. An agent that
+ * later runs `cat .env`, or a script that prints the value in an error, writes it into
+ * the session transcript on disk. A deny rule closes that.
+ *
+ * Merged into the project's settings, never clobbering what is there.
+ */
+function denyReading(file, dir) {
+  try {
+    const settingsDir = join(dir, '.claude');
+    const settingsPath = join(settingsDir, 'settings.json');
+    mkdirSync(settingsDir, { recursive: true });
+    let cfg;
+    try { cfg = readJson(settingsPath, {}); } catch { return false; }  // never clobber unreadable settings
+    cfg.permissions ??= {};
+    cfg.permissions.deny ??= [];
+    if (!Array.isArray(cfg.permissions.deny)) return false;
+    let added = false;
+    for (const rule of [`Read(./${file})`, `Read(./${file}.*)`]) {
+      if (!cfg.permissions.deny.includes(rule)) { cfg.permissions.deny.push(rule); added = true; }
+    }
+    if (added) writeFileSync(settingsPath, JSON.stringify(cfg, null, 2));
+    return added;
+  } catch {
+    return false;   // defence in depth, never a reason to fail the save
+  }
+}
+
 function ensureGitignored(entry, dir = PROJECT) {
   const path = join(dir, '.gitignore');
   const lines = existsSync(path) ? readFileSync(path, 'utf8').split(/\r?\n/) : [];
@@ -522,10 +552,15 @@ function save(spec, rawValues) {
     }
     for (const [k, v] of Object.entries(values)) upsertEnv(envPath, k, v);
     const added = ensureGitignored(basename(envPath), envDir);
+    const denied = denyReading(basename(envPath), envDir);
     recordInIndex(spec, Object.keys(values), envPath);
     return {
       where: envPath.replace(homedir(), '~'),
-      why: added ? 'Added .env to .gitignore so it cannot be committed.' : '.env was already gitignored.',
+      why: [
+        added ? `Added ${basename(envPath)} to .gitignore so it cannot be committed.`
+              : `${basename(envPath)} was already gitignored.`,
+        denied ? 'Claude is now blocked from reading the file back.' : '',
+      ].filter(Boolean).join(' '),
       next: `Ask Claude to use ${Object.keys(values).join(' and ')} from your .env file.`,
     };
   }
