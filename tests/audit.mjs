@@ -601,11 +601,15 @@ async function runIn(sub, spec, values) {
   return { saved, madeEnv };
 }
 
+// Refusing outright was a dead end for anyone with no project yet — a brand new machine,
+// or someone just trying this out. It now falls back to a personal keys file instead.
 for (const folder of ['Desktop', 'Documents', 'Downloads', null]) {
   const r = await runIn(folder, SPEC.env, { MY_KEY: SENTINEL });
   const label = folder || 'the home folder';
-  check(`.env route refuses to write into ${label}`, r.saved?.ok === false, JSON.stringify(r.saved));
-  check(`no .env left behind in ${label}`, !r.madeEnv);
+  check(`${label}: falls back rather than dead-ending`, r.saved?.ok === true, JSON.stringify(r.saved));
+  check(`${label}: no .env scattered there`, !r.madeEnv);
+  check(`${label}: says it used the personal keys file`,
+    /personal keys file/.test(r.saved?.where || ''), r.saved?.where);
 }
 
 {

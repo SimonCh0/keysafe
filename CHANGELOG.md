@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.10.0
+
+Found by a genuine cold start on a fresh Mac user account, where all three steps failed.
+
+**Install.** Asking Claude to run the CLI does not work. Use the slash commands, and use
+the full `https://` URL — the `owner/repo` shorthand makes Claude Code clone over SSH,
+which fails on any machine without a GitHub SSH key. The README now says so.
+
+**No project to save into.** A brand new machine has no `.env` and no project, so the
+bare-folder guard refused and left the user with no way forward. It now falls back to
+`~/.claude/.env`, a personal keys file that works from any folder. An explicitly named bad
+path is still refused, because that is a real mistake rather than an empty machine.
+
+**It pushed OAuth at someone who wanted an API key.** The skill treated a connector as
+always better and stopped there. It now mentions the connector in one line and sets up the
+key that was asked for. Overriding a clear instruction is wrong, and especially so when
+the point of the exercise is to show how API keys work.
+
 ## 1.9.0
 
 **Restored the read-back block, which had been lost to design churn.**

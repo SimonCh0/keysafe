@@ -527,7 +527,8 @@ function save(spec, rawValues) {
     } else {
       envPath = join(PROJECT, '.env');
     }
-    const envDir = dirname(envPath);
+    let envDir = dirname(envPath);
+    let personal = false;
 
     // A .env belongs to a project. Writing one into Desktop or the home folder
     // scatters junk and puts the key somewhere nothing will read it. MCP routes are
@@ -541,27 +542,42 @@ function save(spec, rawValues) {
       ...['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public']
         .map((f) => join(home, f)),
     ].map((p) => real(p)));
-    const here = real(envDir).replace(/(.)[\\/]+$/, '$1');
+    let here = real(envDir).replace(/(.)[\\/]+$/, '$1');
     if (bare.has(here)) {
-      // Name it the way the user thinks of it. The folder's basename would read as
-      // "your simon" for a home directory, which is nonsense.
-      const label = here === home ? 'home folder' : `${here.split(/[\\/]/).pop()} folder`;
-      throw new Error(
-        `This is your ${label}, not a project folder. A .env file belongs inside the `
-        + `project that uses it. Open the project folder and run this again.`);
+      if (spec.path) {
+        // They named this location deliberately, so say why it is a bad one.
+        const label = here === home ? 'home folder' : `${here.split(/[\\/]/).pop()} folder`;
+        throw new Error(
+          `This is your ${label}, not a project folder. A .env file belongs inside the `
+          + `project that uses it. Name a project folder instead.`);
+      }
+      // No project to put it in — a brand new machine, or someone just trying this out.
+      // Refusing here is a dead end, so fall back to a personal keys file that always
+      // works, is outside any repository, and is recorded in the index like anything else.
+      envPath = join(home, '.claude', '.env');
+      mkdirSync(dirname(envPath), { recursive: true, mode: 0o700 });
+      envDir = dirname(envPath);
+      here = envPath;
+      personal = true;
     }
     for (const [k, v] of Object.entries(values)) upsertEnv(envPath, k, v);
-    const added = ensureGitignored(basename(envPath), envDir);
-    const denied = denyReading(basename(envPath), envDir);
+    const added = personal ? false : ensureGitignored(basename(envPath), envDir);
+    const denied = personal ? false : denyReading(basename(envPath), envDir);
     recordInIndex(spec, Object.keys(values), envPath);
     return {
-      where: envPath.replace(homedir(), '~'),
-      why: [
-        added ? `Added ${basename(envPath)} to .gitignore so it cannot be committed.`
-              : `${basename(envPath)} was already gitignored.`,
-        denied ? 'Claude is now blocked from reading the file back.' : '',
-      ].filter(Boolean).join(' '),
-      next: `Ask Claude to use ${Object.keys(values).join(' and ')} from your .env file.`,
+      where: personal
+        ? '~/.claude/.env (your personal keys file, works from anywhere)'
+        : envPath.replace(real(homedir()), '~').replace(homedir(), '~'),
+      why: personal
+        ? 'Your home folder, outside any project, so it cannot be committed by accident.'
+        : [
+            added ? `Added ${basename(envPath)} to .gitignore so it cannot be committed.`
+                  : `${basename(envPath)} was already gitignored.`,
+            denied ? 'Claude is now blocked from reading the file back.' : '',
+          ].filter(Boolean).join(' '),
+      next: personal
+        ? `Ask Claude to use ${Object.keys(values).join(' and ')}. It knows where to find it.`
+        : `Ask Claude to use ${Object.keys(values).join(' and ')} from your .env file.`,
     };
   }
 

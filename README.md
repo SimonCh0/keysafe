@@ -4,15 +4,18 @@ Connect any app to Claude without your API key ever entering the chat.
 
 ## Install
 
-**You do not need to know what any of this means.** Copy the text below, paste it to
-Claude, and it will do the rest.
+Type these two lines into Claude Code, one at a time. They start with a slash, which means
+Claude Code runs them itself — nothing to approve, and no GitHub account needed.
 
-> Please install the connect-app plugin for me. Run
-> `claude plugin marketplace add SimonCh0/keysafe`
-> then `claude plugin install connect-app@keysafe`.
-> Then tell me to restart Claude Code.
+```
+/plugin marketplace add https://github.com/SimonCh0/keysafe
+```
 
-Restart Claude Code when it says to. That is the whole installation.
+```
+/plugin install connect-app@keysafe
+```
+
+Restart Claude Code. That is the whole installation, once, forever.
 
 Then just ask, in plain English:
 
@@ -22,17 +25,8 @@ Claude works out what the service needs, walks you through getting the key, and 
 small window on your own computer where you paste it. The key goes straight to where it
 belongs. It never appears in the chat.
 
-<details>
-<summary>Prefer to type the commands yourself?</summary>
-
-In Claude Code:
-
-```
-/plugin marketplace add SimonCh0/keysafe
-/plugin install connect-app@keysafe
-```
-
-</details>
+> **Use the full `https://` address, not the `SimonCh0/keysafe` shorthand.** The shorthand
+> makes Claude Code clone over SSH, which fails on any machine without a GitHub SSH key.
 
 ## Why
 

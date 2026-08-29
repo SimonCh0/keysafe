@@ -19,9 +19,16 @@ You never see it.
 
 Check, in this order:
 
-1. **Is there an OAuth connector?** Best outcome, because there is no key to leak. Tell
-   them to add it as a connector and approve the sign-in. **Stop here.** (Cal.com is one:
+1. **Is there an OAuth connector?** Usually the best outcome, because there is no key to
+   leak. Tell them to add it as a connector and approve the sign-in. (Cal.com is one:
    `https://mcp.cal.com/mcp`, OAuth, no key at all.)
+
+   **Do not force this.** If they have said they want to use an API key — they are
+   learning, teaching, demonstrating, testing, or writing a script against the REST API —
+   mention the connector exists in one line and then set up the key they asked for.
+   Overriding a clear instruction because you judge the alternative better is the wrong
+   call, and it is especially wrong when the whole point of what they are doing is to see
+   how API keys work.
 2. **Is there an official MCP server?** Search for it. Note whether it is local (`npx …`)
    or remote (a URL), and exactly which env vars or headers it wants.
 3. **Neither?** The key goes in `.env` and you write code that reads it.
@@ -108,6 +115,10 @@ Decide in this order:
 1. A file `~/.claude/connected-apps.json` already points at for this user's other keys
 2. A `.env` that already exists in the current project
 3. The current project folder
+4. Nothing of the sort, because this is a brand new machine or they are just trying it
+   out: leave `path` unset and the tool writes `~/.claude/.env`, a personal keys file that
+   works from any folder. Say that is what happened. Do not tell them to go and make a
+   project first — that is a dead end for someone whose first act is connecting an app.
 
 Then state it plainly: *"Saved to your project's `.env` file."* Only ask when there is a
 genuine conflict, such as two existing key files and no way to tell which is current.
