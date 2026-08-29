@@ -25,8 +25,14 @@ Claude works out what the service needs, walks you through getting the key, and 
 small window on your own computer where you paste it. The key goes straight to where it
 belongs. It never appears in the chat.
 
-> **Use the full `https://` address, not the `SimonCh0/keysafe` shorthand.** The shorthand
-> makes Claude Code clone over SSH, which fails on any machine without a GitHub SSH key.
+> Two details that matter on a fresh machine:
+>
+> **Type the slash commands yourself.** Asking Claude to run the installer for you does
+> not work, even with permissions relaxed.
+>
+> **Use the full `https://` address.** The `owner/repo` shorthand tries SSH first, which
+> fails without a GitHub SSH key. It does then retry over HTTPS and succeed, so the
+> shorthand is not broken — it just prints an alarming failure line on the way.
 
 ## Why
 

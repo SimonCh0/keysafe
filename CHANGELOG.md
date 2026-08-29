@@ -4,9 +4,9 @@
 
 Found by a genuine cold start on a fresh Mac user account, where all three steps failed.
 
-**Install.** Asking Claude to run the CLI does not work. Use the slash commands, and use
-the full `https://` URL — the `owner/repo` shorthand makes Claude Code clone over SSH,
-which fails on any machine without a GitHub SSH key. The README now says so.
+**Install.** Asking Claude to run the CLI does not work; the slash commands do. The full
+`https://` URL is also preferred: the `owner/repo` shorthand tries SSH first and fails
+without a GitHub SSH key, though it does retry over HTTPS and recover.
 
 **No project to save into.** A brand new machine has no `.env` and no project, so the
 bare-folder guard refused and left the user with no way forward. It now falls back to
