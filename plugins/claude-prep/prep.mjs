@@ -98,13 +98,22 @@ if (missing.length) {
   console.log('  Anything you commit to a public repo is public permanently.\n');
 }
 
-// Node is what the key collector runs on. Say so plainly if it is missing.
-try {
-  const v = execFileSync('node', ['--version'], { encoding: 'utf8' }).trim();
-  console.log(`  Node ${v} found.\n`);
-} catch {
-  console.log('  Node was not found. Install it from https://nodejs.org before continuing.\n');
-}
+// Report what is present, per platform, so the skill can tell them the right thing.
+const WIN = process.platform === 'win32';
+const has = (cmd) => {
+  try {
+    execFileSync(WIN ? 'where' : 'command', WIN ? [cmd] : ['-v', cmd],
+      { stdio: 'ignore', shell: !WIN });
+    return true;
+  } catch { return false; }
+};
+
+console.log(`  Platform: ${WIN ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux'}`);
+console.log(`  git:  ${has('git') ? 'found' : WIN ? 'MISSING — winget install Git.Git'
+  : 'MISSING — run xcode-select --install'}`);
+console.log(`  node: ${has('node') ? 'found' : WIN ? 'MISSING — winget install OpenJS.NodeJS.LTS'
+  : 'MISSING — install from https://nodejs.org/en/download'}`);
+console.log('  (Claude Code itself needs neither. Only install what the task needs.)\n');
 
 if (check) {
   console.log('  Nothing changed. Run without --check to apply.\n');
