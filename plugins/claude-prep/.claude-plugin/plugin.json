@@ -1,7 +1,7 @@
 {
   "name": "claude-prep",
-  "description": "Get a new machine ready so Claude can actually do things: make changes, install what it needs, and push to git, without stopping to ask permission at every step. Checks the tools it needs are present and installs them if not.",
-  "version": "1.4.0",
+  "description": "Two skills for a new machine: install the foundations Claude needs (Node, Git, Python) and grant it permission to act without asking every time. No terminal knowledge required.",
+  "version": "2.0.0",
   "author": {
     "name": "Simon Chadwick"
   },
