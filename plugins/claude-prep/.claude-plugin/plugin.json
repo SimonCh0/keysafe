@@ -1,7 +1,7 @@
 {
   "name": "claude-prep",
-  "description": "Two skills for a new machine: install the foundations Claude needs (Node, Git, Python) and grant it permission to act without asking every time. No terminal knowledge required.",
-  "version": "2.0.0",
+  "description": "One command to set up a new Mac or Windows computer for Claude Code: installs Node, Git and Python if missing, and grants Claude permission to work without asking at every step. No terminal knowledge needed.",
+  "version": "2.1.0",
   "author": {
     "name": "Simon Chadwick"
   },

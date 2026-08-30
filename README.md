@@ -17,29 +17,22 @@ Claude Code runs them itself — nothing to approve, and no GitHub account neede
 
 Restart Claude Code. That is the whole installation, once, forever.
 
-**On a new computer**, install the setup helper too:
+**On a new computer**, get the setup kit too. One command, Mac or Windows:
 
 ```
 /plugin install claude-prep@keysafe
 ```
 
-It adds two things you can ask for whenever you need them:
-
 ```
-/claude-prep:foundations
+/claude-prep:setup
 ```
 
-Installs Node, Git and Python if they are missing, so Claude can run what it builds and
-save your work. Node and Python need no password. You click one dialog for Git on a Mac.
+It installs Node, Git and Python if they are missing, and lets Claude get on with work
+instead of asking permission at every step. Node and Python need no password; on a Mac you
+click one dialog for Git. Restart Claude afterwards.
 
-```
-/claude-prep:permissions
-```
-
-Stops Claude asking permission before every action. Needs no terminal and nothing
-installed.
-
-Neither is needed to start. Claude can build you a web page with none of it.
+You do not need it to start — Claude can build you a web page with none of it installed.
+Run it when Claude first says it cannot do something.
 
 Then just ask, in plain English:
 
