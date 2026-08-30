@@ -43,7 +43,6 @@ const DEV = [
 const NEVER = [
   'Bash(rm *)', 'Bash(rmdir *)', 'Bash(sudo *)',
   'Bash(chmod *)', 'Bash(chown *)',
-  'Bash(curl *)', 'Bash(wget *)',
   'Bash(ssh *)', 'Bash(scp *)',
   'Bash(dd *)', 'Bash(mkfs*)', 'Bash(diskutil *)',
 ];
@@ -83,19 +82,23 @@ console.log(`  Would add: ${missing.length}\n`);
 
 const modeChange = !cfg.permissions?.defaultMode;
 if (modeChange) {
-  console.log('  Would also set: file edits accepted without asking each time');
-  console.log('     (Bash commands and anything touching the network still ask)\n');
+  console.log('  Would also turn on auto mode. Claude then judges each action rather');
+  console.log('  than matching command names, so it can get on with ordinary work and');
+  console.log('  still stop at things that cannot be undone.\n');
+  console.log('  Allowed: editing files in your project, reading, installing what the');
+  console.log('           project needs, pushing to a branch you are working on.');
+  console.log('  Stopped: deleting files it did not create, reaching outside your');
+  console.log('           project, pushing to main, leaking credentials, curl into shell.\n');
+  console.log('  See the full list any time with:  claude auto-mode defaults\n');
 }
 
 if (missing.length) {
   console.log('  These let Claude read your files and use the normal dev tools');
   console.log('  without stopping to ask each time:\n');
   for (const r of missing) console.log(`     ${r}`);
-  console.log('\n  These stay blocked, whatever else is allowed:');
-  console.log('     deleting (rm), admin (sudo), network (curl, wget),');
-  console.log('     other machines (ssh, scp), permissions (chmod), disks (dd)\n');
-  console.log('  git push IS included, so Claude can publish your work.');
-  console.log('  Anything you commit to a public repo is public permanently.\n');
+  console.log('\n  These stay blocked whatever else is set:');
+  console.log('     deleting (rm), admin (sudo), other machines (ssh, scp),');
+  console.log('     permissions (chmod), disks (dd)\n');
 }
 
 // Report what is present, per platform, so the skill can tell them the right thing.
@@ -133,10 +136,13 @@ const deny = new Set(cfg.permissions.deny ?? []);
 for (const r of NEVER) deny.add(r);
 cfg.permissions.deny = [...deny];
 
-// Editing files is most of what Claude does for someone building their first thing,
-// and approving each edit one at a time is where beginners give up. Bash commands and
-// anything reaching the network still prompt.
-if (!cfg.permissions.defaultMode) cfg.permissions.defaultMode = 'acceptEdits';
+// Auto mode is Anthropic's own answer to this, and it is better than any hand-written
+// list. It screens each action with a classifier instead of matching command names, so
+// it allows things a static list cannot express (installing a toolchain the project
+// actually needs) while blocking things a static list would miss (deleting files that
+// existed before the session, wandering outside the project, leaking credentials).
+// It also screens tool output for prompt injection, which an allow list cannot do.
+if (!cfg.permissions.defaultMode) cfg.permissions.defaultMode = 'auto';
 mkdirSync(join(homedir(), '.claude'), { recursive: true });
 if (existsSync(SETTINGS)) writeFileSync(`${SETTINGS}.before-setup`, readFileSync(SETTINGS));
 writeFileSync(SETTINGS, JSON.stringify(cfg, null, 2));

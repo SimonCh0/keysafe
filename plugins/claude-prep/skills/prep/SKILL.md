@@ -123,38 +123,44 @@ node "${CLAUDE_PLUGIN_ROOT}/prep.mjs"
 
 Tell them to restart Claude Code.
 
-## What this grants, and what it does not
+## What this turns on
 
-**Granted**, because these are the things that otherwise make Claude useless:
+**Auto mode**, which is Anthropic's own feature for this, not something invented here.
+Instead of matching command names against a list, it judges each action in context. That
+matters because a list cannot tell the difference between deleting a file Claude just
+created and deleting the user's only copy of something.
 
-- Reading and searching their files
-- Editing and creating files without approving each one
-- `git`, including **commit and push**, so work can actually be saved and published
-- `npm`, `npx`, `node`, `python3`, so things can be installed and run
-- Making folders, copying and moving files
+Allowed: editing files inside their project, reading and searching, installing what the
+project's own manifest asks for, installing a language toolchain the project needs, and
+pushing to a branch they are working on.
 
-**Still asks**, and these are the ones worth reading:
+Stopped: deleting files that existed before the session, wandering outside the project into
+their home folder or other repositories, pushing straight to `main`, force pushing, piping
+a downloaded script into a shell, and putting credentials anywhere they become public.
 
-| Still asks | Why |
-|---|---|
-| `rm`, `rmdir` | Deleting is the one mistake that cannot be undone |
-| `sudo` | An admin password should never be automated |
-| `curl`, `wget` | Can send their files or keys somewhere |
-| `chmod`, `chown` | How small mistakes turn into security problems |
-| `ssh`, `scp` | Reach other machines |
+It also screens tool output for prompt injection, which no allow list can do.
 
-If they ask why something still stops them, that table is the answer. The remaining
-prompts are few enough to be worth reading, which is the point.
+Show them `claude auto-mode defaults` if they want the full list. It is long, and that is
+the point: it encodes judgement that a course cannot teach in an afternoon.
+
+**Plus a small deny list** for the few things worth stopping unconditionally: `rm`, `sudo`,
+`ssh`, `scp`, `chmod`, `chown`, `dd`, `diskutil`.
 
 ## Be straight about the trade
 
-This is a real grant of access. Say so in a sentence: Claude can now change their files and
-publish to their repositories without asking first, which is what makes it useful and is
-also a genuine handover of control. Anything destructive still stops.
+This is a real grant of access. Say so in a sentence: Claude can now change files in their
+project and push to a branch without asking first, which is what makes it useful and is
+also a genuine handover. Anything irreversible still stops.
 
-**`git push` is included deliberately.** It publishes. Warn them once that anything
-committed to a public repository is public permanently, which is exactly why keys belong
-in `.env` and never in a file that gets committed.
+**Set up git before turning this on, not after.** Git is the undo button that makes the
+whole arrangement reasonable — a mistake inside a repository is recoverable, the same
+mistake outside one is not. If they only ever install one thing, install git.
+
+## Requires a recent Claude Code
+
+Auto mode is newer than the permission system it sits on. If `--permission-mode auto` is
+not accepted, their Claude Code is too old: tell them to update, and until then fall back
+to `acceptEdits`, which stops the per-edit prompts but has none of the judgement.
 
 ## Afterwards
 
