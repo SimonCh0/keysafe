@@ -15,7 +15,18 @@ Claude Code runs them itself — nothing to approve, and no GitHub account neede
 /plugin install connect-app@keysafe
 ```
 
-Restart Claude Code. That is the whole installation, once, forever.
+Restart Claude Code.
+
+**If this is a new machine**, one more line gets you to a working baseline. A fresh
+Claude Code install has approved nothing, so it stops and asks before every command:
+
+```
+/connect-app:setup
+```
+
+It shows you exactly what it will allow before changing anything, keeps whatever you have
+already approved, and deliberately leaves deleting, `sudo`, network access and publishing
+still asking. Restart again afterwards.
 
 Then just ask, in plain English:
 

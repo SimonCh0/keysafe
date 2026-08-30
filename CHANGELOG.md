@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.11.0
+
+**New `/connect-app:setup` for people on a new machine.**
+
+A fresh Claude Code install has approved nothing, so it stops and asks before every
+command. Someone who has used it for months has quietly approved dozens and forgotten.
+That gap is most of the difference between a demo that flows and a beginner who gets
+stuck, and it is invisible from the experienced side.
+
+- Approves reading files and the everyday dev tools, so routine work stops being
+  interrupted
+- Deliberately leaves `rm`, `sudo`, `curl`, `ssh`, `git push` and `chmod` still asking.
+  Those prompts are the safeguard, not a gap
+- `--check` shows the full list before anything changes
+- Existing approvals are kept, and the previous settings file is backed up first
+
 ## 1.10.0
 
 Found by a genuine cold start on a fresh Mac user account, where all three steps failed.
