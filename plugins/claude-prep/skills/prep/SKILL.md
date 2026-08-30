@@ -59,18 +59,32 @@ Be honest with yourself about this. On a Mac that has never been developed on:
 `python3` in `/usr/bin` are stubs that pop the Xcode Command Line Tools installer the first
 time anything runs them.
 
-**Nothing here installs silently.** Homebrew needs `sudo`, the Node installer is a `.pkg`
-that prompts for an administrator password, and Xcode tools opens its own dialog. That is
-macOS, not something you can engineer around.
+**Node, without an administrator password.** Prefer this over the `.pkg` installer, because
+it needs no password at all — it installs entirely inside their home folder:
 
-- **Xcode tools, which gives them git:** run `xcode-select --install`. A system dialog
-  appears. Tell them to click Install and that it takes a few minutes.
-- **Node:** `open https://nodejs.org/en/download`, then tell them to download the macOS
-  installer, double-click it, click through, and enter their Mac password when asked. Say
-  the password prompt is macOS asking, not you, and that it is normal.
+```bash
+curl -fsSL https://fnm.vercel.app/install | bash
+```
 
-Do not offer a choice between Homebrew and the installer. Pick the installer: it is a
-double-click rather than a terminal.
+Then start a new shell and `fnm install --lts`. Auto mode treats a piped install script as
+worth asking about, so they will see one prompt. That is one click, against a password
+prompt and a download they have to find in Finder. Tell them what the prompt is for.
+
+If that fails, fall back to `open https://nodejs.org/en/download` and talk them through the
+installer, which does need their Mac password.
+
+**Python, without a password**, same idea — `uv` installs both itself and Python into the
+home folder:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Git is the awkward one.** There is no clean no-password route:
+
+- `xcode-select --install` opens a system dialog. Simplest, and it is what most guides use.
+- GitHub Desktop bundles its own git, but inside the app bundle and not on `PATH`, so it
+  does **not** give Claude a usable `git` on its own. Do not assume it does.
 
 ### Windows
 
