@@ -8,6 +8,11 @@
       "name": "connect-app",
       "source": "./plugins/connect-app",
       "description": "Connect any app to Claude without pasting your API key into the chat"
+    },
+    {
+      "name": "claude-prep",
+      "source": "./plugins/claude-prep",
+      "description": "Set up a new machine so Claude can work without asking permission at every step"
     }
   ],
   "metadata": {

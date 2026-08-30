@@ -17,6 +17,18 @@ Claude Code runs them itself — nothing to approve, and no GitHub account neede
 
 Restart Claude Code. That is the whole installation, once, forever.
 
+**On a new computer**, install the setup helper too and run it. It makes sure Claude can
+actually do things — change files, install what it needs, push to git — instead of
+stopping to ask at every step, and it installs anything missing for you.
+
+```
+/plugin install claude-prep@keysafe
+```
+
+```
+/claude-prep:prep
+```
+
 Then just ask, in plain English:
 
 > connect my Resend account
