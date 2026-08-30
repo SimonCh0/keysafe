@@ -1,8 +1,14 @@
 # Changelog
 
-## 1.11.0
+## 1.12.0
 
-**New `/connect-app:setup` for people on a new machine.**
+Removed the `setup` skill added in 1.11.0. Granting permissions is general Claude Code
+setup, not part of connecting an app, and bundling it here meant installing a key tool
+could offer to change your permissions. This plugin does one thing again.
+
+## 1.11.0 (withdrawn)
+
+**`/connect-app:setup` for people on a new machine.**
 
 A fresh Claude Code install has approved nothing, so it stops and asks before every
 command. Someone who has used it for months has quietly approved dozens and forgotten.
